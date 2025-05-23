@@ -1,0 +1,84 @@
+#initial donor acceptor model configuration
+#need to specify rseed
+
+
+variable equil_time equal 1000000
+variable dump_time equal ${equil_time}/2
+variable baltime equal 10000
+
+#operation temperature in kelvin
+variable settemp equal "298" 
+units real
+
+atom_style molecular
+
+read_data data_in.data
+
+variable box_final equal 579.2461067768847 #for 100 100mers
+variable rseed equal 385318
+
+#start with everything WCA
+variable    epsHP equal 1.0
+variable    epsHB equal 1.0
+
+variable epsBB equal v_epsHP
+variable BB_MBeps equal v_epsHP 
+variable MBeps equal v_epsHP
+
+#NONBOND PARAMS
+#define sizes in angstroms
+
+variable sizeBB equal "6.2" #backbone
+variable BBcut equal "v_sizeBB*(2^(1/6))"
+
+pair_style lj/cut 2.5
+
+
+pair_coeff * * 1.0 ${sizeBB} ${BBcut}
+pair_modify shift yes 
+
+#BOND PARAMS
+bond_style harmonic
+angle_style harmonic
+
+bond_coeff 1 250 5.1 #250 5.1
+
+angle_coeff 1 10.0 170 #L-L-L 5.5
+angle_coeff 2 6.7 180 #L-L-L 5.5
+
+velocity all create ${settemp} ${rseed} loop geom
+
+fix 1 all langevin ${settemp} ${settemp} 396000 ${rseed}
+fix 2 all nve
+
+thermo 10000
+
+neigh_modify delay 0 every 5 check yes
+comm_modify cutoff 20
+comm_style tiled
+fix bal all balance ${baltime} 1.1 rcb
+
+timestep 25 #fs
+
+reset_timestep 0
+thermo 10000#5000
+
+dump	mydump all custom ${dump_time} mc_equil.lammpstrj id mol type x y z
+dump_modify     mydump sort id append no
+
+fix SHRINK all deform 1 x final -${box_final} ${box_final} &
+		y final -${box_final} ${box_final} &
+		z final -${box_final} ${box_final}
+
+
+restart ${dump_time} equil.rs0 equil.rs1
+run ${equil_time} upto
+
+write_restart post_equil.rs
+write_data post_equil.data
+
+
+
+
+
+

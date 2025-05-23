@@ -1,0 +1,209 @@
+#initial donor acceptor model configuration
+#need to specify rseed, restarting
+
+#operation temperature in kelvin
+variable settemp equal "348" 
+units real
+
+atom_style molecular
+
+variable rseed equal 7629747
+
+
+variable restarttime equal "v_annealtime/50"
+variable dumptime equal "v_annealtime/50"
+variable baltime equal 100000
+variable ramp_bool equal 1 #boolean 0 or 1 to indicate whether temperature should ramp or not
+variable DP equal 100
+variable ramp_rate equal 0.000002 #K/ts = K/10fs
+variable ramp_num_steps equal (${settemp}-298)/${ramp_rate}
+
+if ${ramp_bool} then &
+	"variable start_temp equal 298" &
+	"variable end_temp equal ${settemp}" &
+	"variable annealtime equal ${ramp_num_steps}" &
+else &
+	"variable start_temp equal ${settemp}" &
+	"variable end_temp equal ${settemp}" &
+	"variable annealtime equal 5000000" #5000000
+
+pair_style lj/cut 15.5
+bond_style harmonic
+angle_style harmonic
+
+if "${restarting}==1" then "read_restart prod.rs.*" &
+ "jump SELF loop"
+
+
+
+read_data ../equil/post_equil.data
+reset_timestep 0
+
+label loop
+
+group BB type 1 2 3 4
+compute mymsd BB msd com yes 
+
+variable mystep equal step
+
+variable    final_runupto equal ${annealtime}+5000000
+
+#NONBOND PARAMS
+#define sizes in angstroms
+variable sizeBB equal "6.2" #backbone
+variable BBcut equal "v_sizeBB*(2^(1/6))"
+
+#INPUT PARAMS
+variable eps11_298 equal 0.05
+variable eps22_298 equal 0.075
+variable eps33_298 equal 0.13094258
+variable eps44_298 equal 0.24950568
+variable frac_298 equal 0.21287682
+variable eps11_348 equal 0.05
+variable eps22_348 equal 0.075
+variable eps33_348 equal 0.17041429
+variable eps44_348 equal 0.47670943
+variable frac_348 equal 0.94973001
+
+variable interp_exp equal 8.74973208
+variable interp_stretch equal 2.75170937
+
+###INTERPOLATE TO CURRENT TEMP###
+
+variable mystep equal step
+variable mytemp equal ${start_temp}+(${end_temp}-${start_temp})*(v_mystep/${annealtime})
+variable scaled_temp equal (v_mytemp-298)/50 		#denom is (348-298)
+variable curr_scaled_eng equal (-1*(1-v_scaled_temp/${interp_stretch})^${interp_exp}+1)/(-1*(1-1/${interp_stretch})^${interp_exp}+1)
+
+#interpolate 11
+variable curr_eng11 equal v_curr_scaled_eng*(${eps11_348}-${eps11_298})+${eps11_298}
+
+#interpolate 22
+variable curr_eng22 equal v_curr_scaled_eng*(${eps22_348}-${eps22_298})+${eps22_298}
+
+#interpolate 33
+variable curr_eng33 equal v_curr_scaled_eng*(${eps33_348}-${eps33_298})+${eps33_298}
+
+#interpolate 44
+variable curr_eng44 equal v_curr_scaled_eng*(${eps44_348}-${eps44_298})+${eps44_298}
+
+#interpolate frac
+variable curr_frac equal v_curr_scaled_eng*(${frac_348}-${frac_298})+${frac_298}
+
+
+variable eps11 equal v_curr_eng11
+variable eps22 equal v_curr_eng22
+variable eps33 equal v_curr_eng33
+variable eps44 equal v_curr_eng44
+
+variable eps12 equal v_curr_frac*(v_curr_eng11*v_curr_eng22)^0.5
+variable eps13 equal v_curr_frac^2*(v_curr_eng11*v_curr_eng33)^0.5
+variable eps14 equal v_curr_frac^3*(v_curr_eng11*v_curr_eng44)^0.5
+
+variable eps23 equal v_curr_frac*(v_curr_eng22*v_curr_eng33)^0.5
+variable eps24 equal v_curr_frac^2*(v_curr_eng22*v_curr_eng44)^0.5
+
+variable eps34 equal v_curr_frac*(v_curr_eng33*v_curr_eng44)^0.5
+
+
+###PAIR COEFFS####
+pair_coeff 1 1 $(v_eps11) ${sizeBB}
+pair_coeff 2 2 $(v_eps22) ${sizeBB}
+pair_coeff 3 3 $(v_eps33) ${sizeBB}
+pair_coeff 4 4 $(v_eps44) ${sizeBB}
+pair_coeff 1 2 $(v_eps12) ${sizeBB}
+pair_coeff 1 3 $(v_eps13) ${sizeBB}
+pair_coeff 1 4 $(v_eps14) ${sizeBB}
+pair_coeff 2 3 $(v_eps23) ${sizeBB}
+pair_coeff 2 4 $(v_eps24) ${sizeBB}
+pair_coeff 3 4 $(v_eps34) ${sizeBB}
+pair_modify shift yes 
+
+if ${ramp_bool} then &	
+	"variable nadapt equal 1000" &
+	"fix ADAPT11 all adapt ${nadapt} pair lj/cut epsilon 1 1 v_eps11" &
+	"fix ADAPT12 all adapt ${nadapt} pair lj/cut epsilon 1 2 v_eps12" &
+	"fix ADAPT13 all adapt ${nadapt} pair lj/cut epsilon 1 3 v_eps13" &
+	"fix ADAPT14 all adapt ${nadapt} pair lj/cut epsilon 1 4 v_eps14" &
+	"fix ADAPT22 all adapt ${nadapt} pair lj/cut epsilon 2 2 v_eps22" &
+	"fix ADAPT23 all adapt ${nadapt} pair lj/cut epsilon 2 3 v_eps23" &
+	"fix ADAPT24 all adapt ${nadapt} pair lj/cut epsilon 2 4 v_eps24" &
+	"fix ADAPT33 all adapt ${nadapt} pair lj/cut epsilon 3 3 v_eps33" &
+	"fix ADAPT34 all adapt ${nadapt} pair lj/cut epsilon 3 4 v_eps34" &
+	"fix ADAPT44 all adapt ${nadapt} pair lj/cut epsilon 4 4 v_eps44"
+
+#BOND PARAMS
+bond_coeff 1 250 5.1 #250 5.1
+special_bonds fene
+
+angle_coeff 1 10.0 170.0 #L-L-L 5.5
+angle_coeff 2 6.7 180.0 #L-L-L 5.5
+
+#fix 1 all nvt temp ${start_temp} ${end_temp} $(100*dt)
+fix 1 all langevin ${start_temp} ${end_temp} 396000 ${rseed}
+fix 2 all nve
+
+timestep 10 #25 #fs
+
+neighbor 6 bin #Neighbor skin limit increased to avoid cutting backbone angle
+neigh_modify delay 0 every 5 check yes
+comm_modify cutoff 20
+comm_style tiled
+fix bal all balance ${baltime} 1.1 rcb
+
+thermo 50000
+
+dump	mydump all custom ${dumptime} prod.lammpstrj id mol type x y z
+dump_modify     mydump sort id append yes
+
+compute neigh all coord/atom cutoff 8.0
+variable nbonds atom 2-((floor(id%${DP})==1)+(floor(id%${DP})==0))
+variable neigh atom c_neigh
+variable tot_neigh atom v_neigh+v_nbonds #add number of bonds since special_bonds fene excludes the bonded atoms
+
+variable aggbool atom v_tot_neigh>4
+compute meanagg all reduce ave v_aggbool
+variable meanagg equal c_meanagg
+#fix     earlystop all halt 10000 v_meanagg > 0.4
+
+fix checkprint all print 200000 "$(v_mystep) $(temp) $(v_mytemp) $(v_eps11) $(v_eps12) $(v_eps13) $(v_eps14) $(v_eps22) $(v_eps23) $(v_eps24) $(v_eps33) $(v_eps34) $(v_eps44)" screen no file engs.dat #dump engs and temps for testing/debugging
+
+thermo_style custom step temp epair emol etotal v_meanagg
+
+restart ${restarttime} prod.rs.*
+
+run 0
+
+if "$(v_mystep)<${annealtime}" then &
+"run ${annealtime} upto"
+
+if ${ramp_bool} then &
+	"unfix 1" &
+	"fix 1 all langevin ${end_temp} ${end_temp} 396000 ${rseed}" &
+	"unfix ADAPT11" &
+        "unfix ADAPT12" &
+        "unfix ADAPT13" &
+        "unfix ADAPT14" &
+        "unfix ADAPT22" &
+        "unfix ADAPT23" &
+        "unfix ADAPT24" &
+        "unfix ADAPT33" &
+        "unfix ADAPT34" &
+        "unfix ADAPT44" &
+	"run ${final_runupto} upto"
+
+
+undump mydump
+unfix bal
+
+
+write_restart post_prod.rs
+write_dump all custom post_prod.lammpstrj id mol type x y z
+print "Step: $(v_mystep), Temp: $(v_mytemp)" file finalstep.dat
+
+jump SELF finish
+
+label finish
+print "FINISHED RUN"
+quit
+

@@ -1,0 +1,32 @@
+{
+    "degree_of_polymerization": 100,
+    "number_of_chains": 100,
+    "temp": 308,
+    "degree_of_substitution": 2.4,
+    "init_shape": "random",
+    "init_spacing": 14,
+    "ds_pattern": null,
+    "sub_ratio": {
+        "6": 0.7999999999999999,
+        "3": 0.7999999999999999,
+        "2": 0.7999999999999999
+    },
+    "random_heterogeneity": 1,
+    "wt_fraction": 0.02,
+    "box_size": 545.6499518011129,
+    "eps00": 0.05,
+    "eps11": 0.075,
+    "eps22": 0.1384329092733327,
+    "eps33": 0.4171726988250831,
+    "eps_frac": 0.508532520403818,
+    "cell_eps_300": 0.05,
+    "eps_11_300": 0.075,
+    "eps_22_300": 0.10175293,
+    "mgf_eps_300": 0.33624937,
+    "frac_300": 0.09188735,
+    "cell_eps_348": 0.05,
+    "eps_11_348": 0.075,
+    "eps_22_348": 0.17029026,
+    "mgf_eps_348": 0.48745635,
+    "frac_348": 0.87039781
+}

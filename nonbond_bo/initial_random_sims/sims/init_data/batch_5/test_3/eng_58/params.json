@@ -1,0 +1,18 @@
+{
+    "degree_of_polymerization": "100",
+    "number_of_chains": "100",
+    "temp": "348",
+    "degree_of_substitution": "1.8",
+    "init_shape": "random",
+    "init_spacing": "14",
+    "ds_pattern": "None",
+    "sub_ratio": "{'6': 0.6, '3': 0.6, '2': 0.6}",
+    "random_heterogeneity": "0.05",
+    "wt_fraction": "0.02",
+    "box_size": "537.7244522258527",
+    "eps00": "0.05",
+    "eps11": "0.075",
+    "eps22": "0.25723523",
+    "eps33": "0.47285856",
+    "eps_frac": "0.61708656"
+}

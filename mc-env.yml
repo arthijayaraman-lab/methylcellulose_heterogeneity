@@ -1,0 +1,11 @@
+name: mc-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - bayesian-optimization=1.5.1
+  - conda-forge::pydtmc=8.7.0
+  - anaconda::networkx=3.1
+  - conda-forge::matplotlib=3.7.1
+  - anaconda::seaborn=0.12.2
+
